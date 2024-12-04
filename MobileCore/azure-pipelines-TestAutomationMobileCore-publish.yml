@@ -1,0 +1,55 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - TestAutomationMobileCore/pom.xml
+
+pool:
+  name: PACE
+
+steps:
+
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(Build.SourcesDirectory)'
+    script: |
+      echo '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"' > .\settings.xml
+      echo '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' >> .\settings.xml
+      echo '          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0' >> .\settings.xml
+      echo '                              https://maven.apache.org/xsd/settings-1.0.0.xsd">' >> .\settings.xml
+      echo '  <servers>' >> .\settings.xml
+      echo '    <server>' >> .\settings.xml
+      echo '      <id>TestAutomationFrameworkDependencies</id>' >> .\settings.xml
+      echo '      <username>$(mvnUserName)</username>' >> .\settings.xml
+      echo '      <password>$(mvnPassword)</password>' >> .\settings.xml
+      echo '    </server>' >> .\settings.xml
+      echo '  </servers>' >> .\settings.xml
+      echo '</settings>' >> .\settings.xml
+
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'TestAutomationMobileCore/pom.xml'    
+    options: '--settings $(Build.SourcesDirectory)/settings.xml'
+    goals: 'deploy -Dmaven.resolver.transport=wagon'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    javaHomeOption: 'Path'
+    jdkDirectory: 'C:\Program Files\Java\jdk-21\'
+    mavenVersionOption: 'Path'
+    mavenDirectory: 'C:\Program Files\Maven\apache-maven-3.9.6-bin\apache-maven-3.9.6\'
+    mavenSetM2Home: true
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    
+- task: PowerShell@2
+  displayName: Send Teams Notifications
+  inputs:
+    filePath: 'TestAutomationMobileCore/SendReleaseNotification.ps1'
